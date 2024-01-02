@@ -71,7 +71,7 @@ constexpr const Color TRUE_BLUE = Color{6, 90, 181, 255};        // 140 / -4
 constexpr const Color MAUVE = Color{117, 70, 101, 255};          // 141 / -3
 constexpr const Color DARK_PEACH = Color{255, 110, 89, 255};     // 142 / -2
 constexpr const Color PEACH = Color{255, 157, 129, 255};         // 143 / -1
-constexpr const SDL_Color COLORS[] = {
+constexpr const Color COLORS[] = {
     BLACK,       DARK_BLUE,   DARK_PURPLE,    DARK_GREEN,  BROWN,         DARK_GREY,  LIGHT_GREY,
     WHITE,       RED,         ORANGE,         YELLOW,      GREEN,         BLUE,       LAVENDER,
     PINK,        LIGHT_PEACH, BROWNISH_BLACK, DARKER_BLUE, DARKER_PURPLE, BLUE_GREEN, DARK_BROWN,
@@ -102,7 +102,7 @@ inline void init(int w, int h) {
     if (!surface) {
       sdlError("SDL_CreateRGBSurfaceWithFormat");
     }
-    auto pixels = static_cast<SDL_Color *>(surface->pixels);
+    auto pixels = static_cast<Color *>(surface->pixels);
     for (int i = 0; i < 128; i++) {
       for (int j = 0; j < 128; j++) {
         auto &pixel = pixels[128 * i + j];
