@@ -70,8 +70,8 @@ constexpr const SDL_Color COLORS[] = {
     TRUE_BLUE,   MAUVE,       DARK_PEACH,     PEACH,
 };
 
-SDL_Window *window;
-SDL_Renderer *renderer;
+static SDL_Window *window;
+static SDL_Renderer *renderer;
 
 inline void init(int w, int h) {
   if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
@@ -118,7 +118,7 @@ static_assert(offsetof(Vertex, z) == 2 * sizeof(float));
 static_assert(offsetof(Vertex, color) == 3 * sizeof(float));
 static_assert(sizeof(Triangle) == 3 * sizeof(Vertex));
 
-std::vector<Triangle> triangles;
+static std::vector<Triangle> triangles;
 
 inline void addTriangle(Color color, Vector a, Vector b, Vector c) {
   triangles.push_back(Triangle{
@@ -140,7 +140,7 @@ inline void flush() {
   }
   // Sort the triangles.
   //
-  // We care primarily by z coordinates, but if there are ties, we also look
+  // We sort primarily by z coordinates, but if there are ties, we also look
   // at y and x coordinates to reduce Z-fighting.
   //
   // This isn't always correct, but it's fast and simple and correct enough of the time.
@@ -176,17 +176,7 @@ inline void flush() {
   if (status != 0) {
     sdlError("SDL_RenderGeometryRaw");
   }
-}
-
-inline void drawTriangle(Color color, SDL_FPoint a, SDL_FPoint b, SDL_FPoint c) {
-  SDL_Vertex vertices[3] = {
-      {.color = color, .position = a},
-      {.color = color, .position = b},
-      {.color = color, .position = c},
-  };
-  if (SDL_RenderGeometry(renderer, nullptr, vertices, 3, nullptr, 0) != 0) {
-    sdlError("SDL_RenderGeometry");
-  }
+  triangles.clear();
 }
 
 int main() {

@@ -23,10 +23,12 @@ if REPO_DIR != os.getcwd():
 aparser = argparse.ArgumentParser()
 aparser.add_argument("--debug", "-g", default=False, action="store_true")
 aparser.add_argument("c_file_path")
+aparser.add_argument("subproc_args", nargs="*", default=[])
 args = aparser.parse_args()
 
 C_FILE_PATH: str = args.c_file_path
 DEBUG: bool = args.debug
+SUBPROC_ARGS: typing.List[str] = args.subproc_args
 
 SYSTEM_WINDOWS = "Windows"
 SYSTEM_MACOS = "Darwin"
@@ -81,8 +83,10 @@ def compile(
         panic(f"COMPILE FAILED: args = {args}")
 
 
-def run(exe_name: str = EXE_NAME) -> None:
-    returncode = subprocess.run(os.path.join(".", exe_name)).returncode
+def run(
+    exe_name: str = EXE_NAME, subproc_args: typing.List[str] = SUBPROC_ARGS
+) -> None:
+    returncode = subprocess.run([os.path.join(".", exe_name)] + subproc_args).returncode
     if returncode != 0:
         panic(f"RUN FINISHED WITH NON-ZERO EXIT CODE")
 

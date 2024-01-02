@@ -71,8 +71,8 @@ constexpr const SDL_Color COLORS[] = {
     TRUE_BLUE,   MAUVE,       DARK_PEACH,     PEACH,
 };
 
-SDL_Window *window;
-SDL_Renderer *renderer;
+static SDL_Window *window;
+static SDL_Renderer *renderer;
 
 inline void init(int w, int h) {
   if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
