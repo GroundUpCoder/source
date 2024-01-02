@@ -636,8 +636,6 @@ int main() {
 
   // Instead of having coordinates on the screen be in [0, WIDTH] x [0, HEIGHT],
   // We can now think in terms of [-1, 1] x [-1, 1].
-  // The downside being that when WIDTH != HEIGHT, the image will look a bit
-  // stretched or squashed.
   apply(viewport());
 
   const Matrix PERSPECTIVE_MATRIX = perspective(  //
