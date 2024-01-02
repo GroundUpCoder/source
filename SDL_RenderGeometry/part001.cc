@@ -1,9 +1,5 @@
-// part 00: Starter Template
-// clang++ -Werror -Wall -Wpedantic -Wextra -std=c++20
-//   -rpath @executable_path/ -F. -framework SDL2
-//   experiments/exp00.cc
+// part 001: Triangle with SDL_RenderGeometry
 //
-// Starting point for future SDL2 scripts.
 //
 
 #include <SDL2/SDL.h>
@@ -99,6 +95,17 @@ inline void clear(Color color) {
   }
 }
 
+inline void drawTriangle(Color color, SDL_FPoint a, SDL_FPoint b, SDL_FPoint c) {
+  SDL_Vertex vertices[3] = {
+      {.color = color, .position = a},
+      {.color = color, .position = b},
+      {.color = color, .position = c},
+  };
+  if (SDL_RenderGeometry(renderer, nullptr, vertices, 3, nullptr, 0) != 0) {
+    sdlError("SDL_RenderGeometry");
+  }
+}
+
 int main() {
   init(WIDTH, HEIGHT);
 
@@ -114,6 +121,10 @@ int main() {
     }
 
     clear(DARK_GREY);
+
+    drawTriangle(PEACH, SDL_FPoint{.x = WIDTH * 1.0f / 3.0f, .y = HEIGHT * 2.0f / 3},
+                 SDL_FPoint{.x = WIDTH / 2.0f, .y = HEIGHT * 1.0f / 3},
+                 SDL_FPoint{.x = WIDTH * 2.0f / 3.0f, .y = HEIGHT * 2.0f / 3});
 
     SDL_RenderPresent(renderer);
     auto frameEndTime = SDL_GetTicks64();

@@ -1,6 +1,6 @@
-// part 02: Batch render triangles
+// part 002: Batch render triangles
 //
-// The result is exactly the same as part 01, but
+// The result is exactly the same as part 001, but
 // Now the triangle is not rendered until `flush()` is called.
 //
 
