@@ -60,11 +60,12 @@ constexpr const Color MAUVE = Color{117, 70, 101, 255};          // 141 / -3
 constexpr const Color DARK_PEACH = Color{255, 110, 89, 255};     // 142 / -2
 constexpr const Color PEACH = Color{255, 157, 129, 255};         // 143 / -1
 constexpr const SDL_Color COLORS[] = {
-    BLACK, DARK_BLUE, DARK_PURPLE, DARK_GREEN, BROWN, DARK_GREY, LIGHT_GREY, WHITE,
-    RED, ORANGE, YELLOW, GREEN, BLUE, LAVENDER, PINK, LIGHT_PEACH,
-    BROWNISH_BLACK, DARKER_BLUE, DARKER_PURPLE, BLUE_GREEN, DARK_BROWN, DARKER_GREY, MEDIUM_GREY,
-    LIGHT_YELLOW, DARK_RED, DARK_ORANGE, LIME_GREEN, MEDIUM_GREEN, TRUE_BLUE, MAUVE, DARK_PEACH,
-    PEACH};
+    BLACK,       DARK_BLUE,   DARK_PURPLE,    DARK_GREEN,  BROWN,         DARK_GREY,  LIGHT_GREY,
+    WHITE,       RED,         ORANGE,         YELLOW,      GREEN,         BLUE,       LAVENDER,
+    PINK,        LIGHT_PEACH, BROWNISH_BLACK, DARKER_BLUE, DARKER_PURPLE, BLUE_GREEN, DARK_BROWN,
+    DARKER_GREY, MEDIUM_GREY, LIGHT_YELLOW,   DARK_RED,    DARK_ORANGE,   LIME_GREEN, MEDIUM_GREEN,
+    TRUE_BLUE,   MAUVE,       DARK_PEACH,     PEACH,
+};
 
 SDL_Window *window;
 SDL_Renderer *renderer;
@@ -121,11 +122,9 @@ int main() {
 
     clear(DARK_GREY);
 
-    drawTriangle(
-        PEACH,
-        SDL_FPoint{.x = WIDTH * 1.0f / 3.0f, .y = HEIGHT * 2.0f / 3},
-        SDL_FPoint{.x = WIDTH / 2.0f, .y = HEIGHT * 1.0f / 3},
-        SDL_FPoint{.x = WIDTH * 2.0f / 3.0f, .y = HEIGHT * 2.0f / 3});
+    drawTriangle(PEACH, SDL_FPoint{.x = WIDTH * 1.0f / 3.0f, .y = HEIGHT * 2.0f / 3},
+                 SDL_FPoint{.x = WIDTH / 2.0f, .y = HEIGHT * 1.0f / 3},
+                 SDL_FPoint{.x = WIDTH * 2.0f / 3.0f, .y = HEIGHT * 2.0f / 3});
 
     SDL_RenderPresent(renderer);
     auto frameEndTime = SDL_GetTicks64();

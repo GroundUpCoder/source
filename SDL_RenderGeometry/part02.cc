@@ -1,9 +1,7 @@
-// part 00: Starter Template
-// clang++ -Werror -Wall -Wpedantic -Wextra -std=c++20
-//   -rpath @executable_path/ -F. -framework SDL2
-//   experiments/exp00.cc
+// part 02: Batch render triangles
 //
-// Starting point for future SDL2 scripts.
+// The result is exactly the same as part 01, but
+// Now the triangle is not rendered until `flush()` is called.
 //
 
 #include <SDL2/SDL.h>
@@ -11,6 +9,7 @@
 #include <iostream>
 #include <string>
 #include <string_view>
+#include <vector>
 
 [[noreturn]] void panic(const std::string_view &message) {
   std::cerr << "PANIC: " << message << std::endl;
@@ -99,6 +98,97 @@ inline void clear(Color color) {
   }
 }
 
+struct Vector final {
+  float x, y, z, w;
+};
+
+struct Vertex final {
+  float x, y, z;
+  Color color;
+};
+
+struct Triangle final {
+  Vertex vertices[3];
+};
+
+static_assert(sizeof(Vertex) == 4 * sizeof(float));
+static_assert(offsetof(Vertex, x) == 0 * sizeof(float));
+static_assert(offsetof(Vertex, y) == 1 * sizeof(float));
+static_assert(offsetof(Vertex, z) == 2 * sizeof(float));
+static_assert(offsetof(Vertex, color) == 3 * sizeof(float));
+static_assert(sizeof(Triangle) == 3 * sizeof(Vertex));
+
+std::vector<Triangle> triangles;
+
+inline void addTriangle(Color color, Vector a, Vector b, Vector c) {
+  triangles.push_back(Triangle{
+      Vertex{.x = a.x, .y = a.y, .z = a.z, .color = color},
+      Vertex{.x = b.x, .y = b.y, .z = b.z, .color = color},
+      Vertex{.x = c.x, .y = c.y, .z = c.z, .color = color},
+  });
+}
+
+inline void flush() {
+  for (auto &triangle : triangles) {
+    // Sort the vertices in each triangle, with (z, y, x)
+    // The 'z' coordinate is most important to ensure proper drawing order
+    std::sort(  //
+        triangle.vertices, triangle.vertices + 3, [](const Vertex &lhs, const Vertex &rhs) -> bool {
+          return lhs.z < rhs.z ||
+                 (lhs.z == rhs.z && (lhs.y < rhs.y || (lhs.y == rhs.y && lhs.x < rhs.x)));
+        });
+  }
+  // Sort the triangles.
+  //
+  // We care primarily by z coordinates, but if there are ties, we also look
+  // at y and x coordinates to reduce Z-fighting.
+  //
+  // This isn't always correct, but it's fast and simple and correct enough of the time.
+  //
+  std::sort(  //
+      triangles.begin(), triangles.end(), [](const Triangle &lhs, const Triangle &rhs) -> bool {
+        for (int i = 0; i < 3; i++) {
+          if (lhs.vertices[i].z != rhs.vertices[i].z) {
+            return lhs.vertices[i].z < rhs.vertices[i].z;
+          }
+        }
+        for (int i = 0; i < 3; i++) {
+          if (lhs.vertices[i].y != rhs.vertices[i].y) {
+            return lhs.vertices[i].y < rhs.vertices[i].y;
+          }
+        }
+        for (int i = 0; i < 3; i++) {
+          if (lhs.vertices[i].x != rhs.vertices[i].x) {
+            return lhs.vertices[i].x < rhs.vertices[i].x;
+          }
+        }
+        return false;
+      });
+  auto &firstVertex = triangles.front().vertices[0];
+  auto status = SDL_RenderGeometryRaw(  //
+      renderer,
+      nullptr,                             // texture
+      &firstVertex.x, sizeof(Vertex),      // xy coordinates
+      &firstVertex.color, sizeof(Vertex),  // colors
+      nullptr, 0,                          // uv coordinates
+      3 * triangles.size(),                // number of vertices
+      nullptr, 0, 0);                      // indices
+  if (status != 0) {
+    sdlError("SDL_RenderGeometryRaw");
+  }
+}
+
+inline void drawTriangle(Color color, SDL_FPoint a, SDL_FPoint b, SDL_FPoint c) {
+  SDL_Vertex vertices[3] = {
+      {.color = color, .position = a},
+      {.color = color, .position = b},
+      {.color = color, .position = c},
+  };
+  if (SDL_RenderGeometry(renderer, nullptr, vertices, 3, nullptr, 0) != 0) {
+    sdlError("SDL_RenderGeometry");
+  }
+}
+
 int main() {
   init(WIDTH, HEIGHT);
 
@@ -115,6 +205,13 @@ int main() {
 
     clear(DARK_GREY);
 
+    addTriangle(  //
+        PEACH,    //
+        Vector{.x = WIDTH * 1.0f / 3.0f, .y = HEIGHT * 2.0f / 3, .w = 1.0},
+        Vector{.x = WIDTH / 2.0f, .y = HEIGHT * 1.0f / 3, .w = 1.0},
+        Vector{.x = WIDTH * 2.0f / 3.0f, .y = HEIGHT * 2.0f / 3, .w = 1.0});
+
+    flush();
     SDL_RenderPresent(renderer);
     auto frameEndTime = SDL_GetTicks64();
     auto frameDuration = frameEndTime - frameStartTime;
