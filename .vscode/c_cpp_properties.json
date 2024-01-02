@@ -1,0 +1,19 @@
+{
+    "configurations": [
+        {
+            "name": "Mac",
+            "macFrameworkPath": [
+                "."
+            ],
+            "cppStandard": "c++20",
+            "intelliSenseMode": "macos-clang-arm64"
+        },
+        {
+            "name": "Win32",
+            "defines": ["_DEBUG", "UNICODE", "_UNICODE"],
+            "cppStandard": "c++20",
+            "intelliSenseMode": "msvc-arm64"
+          }
+    ],
+    "version": 4
+}

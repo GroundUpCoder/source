@@ -1,0 +1,4 @@
+.DS_Store
+/SDL2.framework
+/a.out
+*.dSYM
