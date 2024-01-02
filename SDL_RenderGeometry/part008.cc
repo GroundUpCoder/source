@@ -1,5 +1,7 @@
 // part 008: More Box swarm stuff
 //
+// Hover over a box to get more info about a box
+//
 
 #include <SDL2/SDL.h>
 
@@ -264,6 +266,16 @@ inline Vector normalize(const Vector &v, float newLength = 1.0f) {
   return v * (newLength / lengthOf(v));
 }
 
+inline Vector minPairwise(const Vector &lhs, const Vector &rhs) {
+  return Vector{std::min(lhs.x, rhs.x), std::min(lhs.y, rhs.y), std::min(lhs.z, rhs.z),
+                std::min(lhs.w, rhs.w)};
+}
+
+inline Vector maxPairwise(const Vector &lhs, const Vector &rhs) {
+  return Vector{std::max(lhs.x, rhs.x), std::max(lhs.y, rhs.y), std::max(lhs.z, rhs.z),
+                std::max(lhs.w, rhs.w)};
+}
+
 inline std::ostream &operator<<(std::ostream &out, const Vector &v) {
   return out << "{" << v.x << ", " << v.y << ", " << v.z << ", " << v.w << "}";
 }
@@ -477,7 +489,37 @@ static_assert(offsetof(Vertex, u) == 4 * sizeof(float));
 static_assert(offsetof(Vertex, v) == 5 * sizeof(float));
 static_assert(sizeof(Triangle) == 3 * sizeof(Vertex));
 
+/// Axis Aligned Bounding Box
+/// Defined by its `min` and `max` coordinates.
+struct AABB final {
+  Vector min, max;
+};
+
+// An AABB that contains no points.
+// Identity element when considering AABB over '|'
+constexpr const AABB AABB_BOTTOM = {
+    .min = {.x = INFINITY, .y = INFINITY, .z = INFINITY, .w = INFINITY},
+    .max = {.x = -INFINITY, .y = -INFINITY, .z = -INFINITY, .w = -INFINITY},
+};
+
+// An AABB that contains all points.
+// Identity element when considering AABB over '&'
+constexpr const AABB AABB_TOP = {
+    .min = {.x = -INFINITY, .y = -INFINITY, .z = -INFINITY, .w = -INFINITY},
+    .max = {.x = INFINITY, .y = INFINITY, .z = INFINITY, .w = INFINITY},
+};
+
+inline AABB operator|(const AABB &lhs, const AABB &rhs) {
+  return AABB{.min = minPairwise(lhs.min, rhs.min), .max = maxPairwise(lhs.max, rhs.max)};
+}
+
+inline AABB operator&(const AABB &lhs, const AABB &rhs) {
+  return AABB{.min = maxPairwise(lhs.min, rhs.min), .max = minPairwise(lhs.max, rhs.max)};
+}
+
 static std::vector<Triangle> triangles;
+static bool reverseSortTriangles = false;
+static AABB renderedBound = AABB_BOTTOM;
 
 inline void perspectiveDivide(Vector &v) {
   v.x /= v.w;
@@ -509,6 +551,8 @@ inline void addTriangle(const Vector &ia, const Vector &ib, const Vector &ic, fl
   if (a.y > HEIGHT && b.y > HEIGHT && c.y > HEIGHT) {
     return;  // entirely on other side of Y = HEIGHT plane
   }
+  renderedBound.min = minPairwise(renderedBound.min, minPairwise(a, minPairwise(b, c)));
+  renderedBound.max = maxPairwise(renderedBound.max, maxPairwise(a, maxPairwise(b, c)));
   triangles.push_back(Triangle{
       Vertex{.x = a.x, .y = a.y, .z = a.z, .color = state.fillColor, .u = u1, .v = v1},
       Vertex{.x = b.x, .y = b.y, .z = b.z, .color = state.fillColor, .u = u2, .v = v2},
@@ -584,6 +628,9 @@ inline std::size_t flush() {
         }
         return false;
       });
+  if (reverseSortTriangles) {
+    std::reverse(triangles.begin(), triangles.end());
+  }
   auto &firstVertex = triangles.front().vertices[0];
   auto status = SDL_RenderGeometryRaw(  //
       renderer,
@@ -707,6 +754,10 @@ int main() {
               break;
             case SDL_SCANCODE_P:
               perspectiveEnabled = !perspectiveEnabled;
+              reverseSortTriangles = !perspectiveEnabled;
+              // We need to sort the triangles in reverse when perspective
+              // is disabled, because of the way the Z-axis gets flipped
+              // during the transform.
               break;
             case SDL_SCANCODE_R:
               cameraRot = Vector{0, 0, 0, 1};
@@ -723,20 +774,19 @@ int main() {
       }
     }
 
+    if (keyboardState[SDL_SCANCODE_LEFT]) {
+      cameraRot.y += +ROT_SPEED / FPS;
+    }
+    if (keyboardState[SDL_SCANCODE_RIGHT]) {
+      cameraRot.y += -ROT_SPEED / FPS;
+    }
+    if (keyboardState[SDL_SCANCODE_UP]) {
+      cameraRot.x += +ROT_SPEED / FPS;
+    }
+    if (keyboardState[SDL_SCANCODE_DOWN]) {
+      cameraRot.x += -ROT_SPEED / FPS;
+    }
     if (!paused) {
-      if (keyboardState[SDL_SCANCODE_LEFT]) {
-        cameraRot.y += +ROT_SPEED / FPS;
-      }
-      if (keyboardState[SDL_SCANCODE_RIGHT]) {
-        cameraRot.y += -ROT_SPEED / FPS;
-      }
-      if (keyboardState[SDL_SCANCODE_UP]) {
-        cameraRot.x += +ROT_SPEED / FPS;
-      }
-      if (keyboardState[SDL_SCANCODE_DOWN]) {
-        cameraRot.x += -ROT_SPEED / FPS;
-      }
-
       if (boxes.size() < 50 && frameCount - lastRandomBoxFrame >= framesPerNewRandomBox) {
         lastRandomBoxFrame = frameCount;
         makeRandomBox();
@@ -765,16 +815,50 @@ int main() {
     // camera
     apply(rotation(-cameraRot));
 
+    int mouseX, mouseY;
+    SDL_GetMouseState(&mouseX, &mouseY);
+    const Box *hoveredBox = nullptr;
+    float hoverBoxMinZ = INFINITY;
+    AABB relevantRenderedBound = AABB_BOTTOM;
+
     for (const auto &box : boxes) {
       push();
       state.fillColor = box.color;
       apply(translation(box.position));
       apply(rotation(box.rotation));
+
+      renderedBound = AABB_BOTTOM;
       addBox();
+      if (renderedBound.min.z < hoverBoxMinZ && mouseX >= renderedBound.min.x &&
+          mouseX <= renderedBound.max.x && mouseY >= renderedBound.min.y &&
+          mouseY <= renderedBound.max.y) {
+        hoveredBox = &box;
+        hoverBoxMinZ = renderedBound.min.z;
+        relevantRenderedBound = renderedBound;
+      }
+
       pop();
     }
 
     pop();
+
+    if (hoveredBox) {
+      // "highlight" the hovered boxed
+      auto aabb = relevantRenderedBound;
+      // state.fillColor = WHITE;
+      // addRectangle(                                        //
+      //     {aabb.min.x - 300, aabb.min.y - 300, -0.5, 1},   //
+      //     {aabb.max.x + 300, aabb.min.y - 300, -0.5, 1},   //
+      //     {aabb.max.x + 300, aabb.max.y + 300, -0.5, 1},   //
+      //     {aabb.min.x - 300, aabb.max.y + 300, -0.5, 1});  //
+      SDL_FRect dst = {.x = aabb.min.x - 2,
+                       .y = aabb.min.y - 2,
+                       .w = aabb.max.x - aabb.min.x + 4,
+                       .h = aabb.max.y - aabb.min.y + 4};
+      if (SDL_RenderCopyF(renderer, boxTexture, nullptr, &dst) != 0) {
+        sdlError("SDL_RenderCopyF");
+      }
+    }
 
     auto triangleCount = flush();
 
@@ -784,6 +868,9 @@ int main() {
     print("totalFPS     = ", totalFPS, "\n");
     print("busyRatio    = ", busyMS / float(MS_PER_FRAME * frameCount), "\n");
     print("render count = ", triangleCount, "\n");
+    if (hoveredBox) {
+      print("BOXPOS = ", hoveredBox->position);
+    }
 
     charY = charHeight / 2;
     charX = WIDTH * 2.0 / 5.0;
