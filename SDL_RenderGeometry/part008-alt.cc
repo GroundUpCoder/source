@@ -1,6 +1,4 @@
-// part 008: More Box swarm stuff
-//
-// Hover over a box to get more info about a box
+// part 008-alt: Attempt at making an outline color to the boxes
 //
 
 #include <SDL2/SDL.h>
@@ -103,19 +101,27 @@ inline void init(int w, int h) {
     sdlError("SDL_CreateRenderer");
   }
   {
-    auto surface = SDL_CreateRGBSurfaceWithFormat(0, 128, 128, 32, SDL_PIXELFORMAT_ARGB8888);
+    auto surface = SDL_CreateRGBSurfaceWithFormat(0, 256, 128, 32, SDL_PIXELFORMAT_ARGB8888);
     if (!surface) {
       sdlError("SDL_CreateRGBSurfaceWithFormat");
     }
     auto pixels = static_cast<Color *>(surface->pixels);
     for (int i = 0; i < 128; i++) {
-      for (int j = 0; j < 128; j++) {
-        auto &pixel = pixels[128 * i + j];
+      for (int j = 0; j < 256; j++) {
+        auto &pixel = pixels[256 * i + j];
         pixel.a = 255;
-        if (i == 0 || i == 127 || j == 0 || j == 127) {
-          pixel.r = pixel.g = pixel.b = 0;
+        if (j < 128) {
+          if (i == 0 || i == 127 || j == 0 || j == 127) {
+            pixel.r = pixel.g = pixel.b = pixel.a = 0;
+          } else {
+            pixel.r = pixel.g = pixel.b = 255;
+          }
         } else {
-          pixel.r = pixel.g = pixel.b = 255;
+          if (i == 0 || i == 127 || j - 128 <= 8 || j - 128 >= 8) {
+            pixel.r = pixel.g = pixel.b = 255;
+          } else {
+            pixel.r = pixel.g = pixel.b = pixel.a = 0;
+          }
         }
       }
     }
@@ -456,9 +462,10 @@ inline constexpr Matrix perspective(float fov, float aspect, float near, float f
 struct RenderState final {
   Matrix transform;
   Color fillColor;
+  Color strokeColor;
 };
 
-static RenderState state = {.transform = IDENTITY, .fillColor = WHITE};
+static RenderState state = {.transform = IDENTITY, .fillColor = WHITE, .strokeColor = BLACK};
 static std::vector<RenderState> stack;
 
 inline void push() { stack.push_back(state); }
@@ -527,8 +534,8 @@ inline void perspectiveDivide(Vector &v) {
   v.w = 1.0;
 }
 
-inline AABB addTriangle(const Vector &ia, const Vector &ib, const Vector &ic, float u1, float v1,
-                        float u2, float v2, float u3, float v3) {
+inline AABB addTriangle(Color color, const Vector &ia, const Vector &ib, const Vector &ic, float u1,
+                        float v1, float u2, float v2, float u3, float v3) {
   auto a = state.transform * ia;
   auto b = state.transform * ib;
   auto c = state.transform * ic;
@@ -551,16 +558,21 @@ inline AABB addTriangle(const Vector &ia, const Vector &ib, const Vector &ic, fl
     return AABB_BOTTOM;  // entirely on other side of Y = HEIGHT plane
   }
   triangles.push_back(Triangle{
-      Vertex{.x = a.x, .y = a.y, .z = a.z, .color = state.fillColor, .u = u1, .v = v1},
-      Vertex{.x = b.x, .y = b.y, .z = b.z, .color = state.fillColor, .u = u2, .v = v2},
-      Vertex{.x = c.x, .y = c.y, .z = c.z, .color = state.fillColor, .u = u3, .v = v3},
+      Vertex{.x = a.x, .y = a.y, .z = a.z, .color = color, .u = u1, .v = v1},
+      Vertex{.x = b.x, .y = b.y, .z = b.z, .color = color, .u = u2, .v = v2},
+      Vertex{.x = c.x, .y = c.y, .z = c.z, .color = color, .u = u3, .v = v3},
   });
   return AABB{.min = minPairwise(a, minPairwise(b, c)), .max = maxPairwise(a, maxPairwise(b, c))};
 }
 
 inline AABB addRectangle(const Vector &a, const Vector &b, const Vector &c, const Vector &d) {
-  return addTriangle(a, b, c, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0) |
-         addTriangle(d, a, c, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0);
+  return
+      // fill
+      addTriangle(state.fillColor, a, b, c, 0.0, 0.0, 0.5, 0.0, 0.5, 1.0) |
+      addTriangle(state.fillColor, d, a, c, 0.0, 1.0, 0.0, 0.0, 0.5, 1.0) |
+      // stroke
+      addTriangle(state.strokeColor, a, b, c, 0.5, 0.5, 1.0, 0.5, 1.0, 1.0) |
+      addTriangle(state.strokeColor, d, a, c, 0.5, 1.0, 0.5, 0.5, 1.0, 1.0);
 }
 
 inline AABB addBox() {
@@ -662,7 +674,8 @@ struct Box final {
   Vector velocity;
   Vector rotation;
   Vector rotationalVelocity;
-  Color color;
+  Color fillColor;
+  Color strokeColor;
 };
 
 constexpr const float GRAVITY = 1.0;
@@ -683,7 +696,8 @@ int main() {
         .rotation = Vector{0, 0, 0, 1},
         .rotationalVelocity = Vector{randomUniform(-0.1, 0.1), randomUniform(-0.1, 0.1),
                                      randomUniform(-0.1, 0.1), 0.0},
-        .color = randomColor(),
+        .fillColor = randomColor(),
+        .strokeColor = randomColor(),
     });
   };
 
@@ -819,7 +833,8 @@ int main() {
 
     for (const auto &box : boxes) {
       push();
-      state.fillColor = box.color;
+      state.fillColor = box.fillColor;
+      state.strokeColor = box.strokeColor;
       apply(translation(box.position));
       apply(rotation(box.rotation));
 
