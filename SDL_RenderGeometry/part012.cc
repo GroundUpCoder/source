@@ -1,4 +1,4 @@
-// part 011: Third Person View - Ok Camera
+// part 012: Third Person View - Ok Camera
 //
 
 #include <SDL2/SDL.h>
@@ -40,6 +40,7 @@ constexpr const float TAU = 2 * PI;
 
 // PICO-8 Colors
 using Color = SDL_Color;
+constexpr const Color TRANSPARENT = Color{0, 0, 0, 0};
 constexpr const Color BLACK = Color{0, 0, 0, 255};               // 0
 constexpr const Color DARK_BLUE = Color{29, 43, 83, 255};        // 1
 constexpr const Color DARK_PURPLE = Color{126, 37, 83, 255};     // 2
@@ -695,6 +696,7 @@ inline int randomInt(int low, int high) { return int(randomUniform(low, high + 0
 inline Color randomColor() { return COLORS[randomInt(0, sizeof(COLORS) / sizeof(COLORS[0]) - 1)]; }
 
 struct Box final {
+  Vector dimensions;
   Vector position;
   Vector velocity;
   Vector rotation;
@@ -706,7 +708,7 @@ struct Box final {
 constexpr const float GRAVITY = -0.25;
 constexpr const Vector CENTER = Vector{0, 0, -50, 1};
 constexpr const auto ROT_SPEED = TAU / 2;
-constexpr const auto MOVE_SPEED = 10.0;
+constexpr const auto MOVE_SPEED = 20.0;
 constexpr const auto JUMP_JERK = 0.1;
 
 int main() {
@@ -715,6 +717,7 @@ int main() {
   std::vector<Box> boxes;
 
   boxes.push_back(Box{
+      .dimensions = Vector{1, 1, 1, 1},
       .position = Vector{0, 0, -10, 1},
       .velocity = ZERO_VECTOR,
       .rotation = PLUS_W,
@@ -722,10 +725,13 @@ int main() {
       .fillColor = PEACH,
       .strokeColor = BLACK,
   });
+
+  auto TILE_SIZE = 4.0f;
   for (int i = -10; i <= 10; i++) {
     for (int j = -10; j <= 10; j++) {
       boxes.push_back(Box{
-          .position = Vector{float(i), -1.0, float(j), 1},
+          .dimensions = Vector{TILE_SIZE, 1, TILE_SIZE, 1},
+          .position = Vector{TILE_SIZE * float(i), -1.0, TILE_SIZE * float(j), 1},
           .velocity = ZERO_VECTOR,
           .rotation = PLUS_W,
           .rotationalVelocity = ZERO_VECTOR,
@@ -736,6 +742,7 @@ int main() {
   }
   for (int i = 0; i < 30; i++) {
     boxes.push_back(Box{
+        .dimensions = Vector{1, 1, 1, 1},
         .position =
             Vector{randomUniform(-20, 20), randomUniform(0.5, 5), randomUniform(-15, 15), 1.0},
         .velocity = ZERO_VECTOR,
@@ -890,12 +897,29 @@ int main() {
     addBox();
     pop();
 
+    // walls
+    push();
+    state.fillColor = BLUE;
+    state.strokeColor = BLUE;
+    apply(translation(0, 0, -500));
+    apply(scaling(500, 500, 2));
+    addBox();
+    pop();
+    push();
+    state.fillColor = BLUE;
+    state.strokeColor = BLUE;
+    apply(translation(500, 0, 0));
+    apply(scaling(1, 500, 500));
+    addBox();
+    pop();
+
     for (const auto &box : boxes) {
       push();
       state.fillColor = box.fillColor;
       state.strokeColor = box.strokeColor;
       apply(translation(box.position));
       apply(rotation(box.rotation));
+      apply(scaling(box.dimensions));
 
       auto bound = addBox();
       if ((perspectiveEnabled ? bound.max.z > hoverBoxRefZ : bound.min.z < hoverBoxRefZ) &&
