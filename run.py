@@ -22,12 +22,14 @@ if REPO_DIR != os.getcwd():
 
 aparser = argparse.ArgumentParser()
 aparser.add_argument("--debug", "-g", default=False, action="store_true")
+aparser.add_argument("--verbose", "-v", default=False, action="store_true")
 aparser.add_argument("c_file_path")
 aparser.add_argument("subproc_args", nargs="*", default=[])
 args = aparser.parse_args()
 
 C_FILE_PATH: str = args.c_file_path
 DEBUG: bool = args.debug
+VERBOSE: bool = args.verbose
 SUBPROC_ARGS: typing.List[str] = args.subproc_args
 
 SYSTEM_WINDOWS = "Windows"
@@ -71,12 +73,17 @@ def compile(
                 *WARNING_FLAGS,
                 *MACOS_SDL2_FLAGS,
                 *(DEBUG_FLAGS if debug else RELEASE_FLAGS),
-                c_file,
                 f"-o{exe_name}",
+                c_file,
             ]
         )
     else:
         panic(f"System not yet supported: {system}")
+
+    if VERBOSE:
+        print("COMPILING PROGRAM:")
+        print(f"  {args[0]}\n    " + "\n    ".join(args[1:]))
+        print()
 
     returncode = subprocess.run(args).returncode
     if returncode != 0:
@@ -86,7 +93,12 @@ def compile(
 def run(
     exe_name: str = EXE_NAME, subproc_args: typing.List[str] = SUBPROC_ARGS
 ) -> None:
-    returncode = subprocess.run([os.path.join(".", exe_name)] + subproc_args).returncode
+    args = [os.path.join(".", exe_name)] + subproc_args
+    if VERBOSE:
+        print("RUNNING COMPILED PROGRAM PROGRAM:")
+        print(f"  {args[0]}\n    " + "\n    ".join(args[1:]))
+
+    returncode = subprocess.run(args).returncode
     if returncode != 0:
         panic(f"RUN FINISHED WITH NON-ZERO EXIT CODE")
 
