@@ -1,11 +1,6 @@
-// part 003: Transforms
+// part 004: 3D Box (shadow)
 //
-// Compared to 002, 003 adds:
-//   * Vector and Matrix operations,
-//   * RenderState: push(), pop()
-//   * Basic Transforms: translation(), scaling(), rotation()
-//
-// The visual is a triangle rotating in 3D space.
+// Like 003, but instead of a triangle, we see a shadow of a box that rotates
 //
 
 #include <SDL2/SDL.h>
@@ -366,15 +361,47 @@ static_assert(sizeof(Triangle) == 3 * sizeof(Vertex));
 
 static std::vector<Triangle> triangles;
 
-inline void addTriangle(Vector a, Vector b, Vector c) {
-  a = state.transform * a;
-  b = state.transform * b;
-  c = state.transform * c;
+inline void addTriangle(const Vector &ia, const Vector &ib, const Vector &ic) {
+  auto a = state.transform * ia;
+  auto b = state.transform * ib;
+  auto c = state.transform * ic;
   triangles.push_back(Triangle{
       Vertex{.x = a.x, .y = a.y, .z = a.z, .color = state.fillColor},
       Vertex{.x = b.x, .y = b.y, .z = b.z, .color = state.fillColor},
       Vertex{.x = c.x, .y = c.y, .z = c.z, .color = state.fillColor},
   });
+}
+
+inline void addRectangle(const Vector &a, const Vector &b, const Vector &c, const Vector &d) {
+  addTriangle(a, b, c);
+  addTriangle(c, d, a);
+}
+
+inline void addBox() {
+  addRectangle(Vector{0.5, 0.5, 0.5, 1.0},    //
+               Vector{-0.5, 0.5, 0.5, 1.0},   //
+               Vector{-0.5, -0.5, 0.5, 1.0},  //
+               Vector{0.5, -0.5, 0.5, 1.0});
+  addRectangle(Vector{0.5, 0.5, -0.5, 1.0},    //
+               Vector{0.5, -0.5, -0.5, 1.0},   //
+               Vector{-0.5, -0.5, -0.5, 1.0},  //
+               Vector{-0.5, 0.5, -0.5, 1.0});
+  addRectangle(Vector{0.5, 0.5, 0.5, 1.0},    //
+               Vector{0.5, 0.5, -0.5, 1.0},   //
+               Vector{0.5, -0.5, -0.5, 1.0},  //
+               Vector{0.5, -0.5, 0.5, 1.0});
+  addRectangle(Vector{-0.5, 0.5, 0.5, 1.0},    //
+               Vector{-0.5, 0.5, -0.5, 1.0},   //
+               Vector{-0.5, -0.5, -0.5, 1.0},  //
+               Vector{-0.5, -0.5, 0.5, 1.0});
+  addRectangle(Vector{0.5, 0.5, 0.5, 1.0},    //
+               Vector{0.5, 0.5, -0.5, 1.0},   //
+               Vector{-0.5, 0.5, -0.5, 1.0},  //
+               Vector{-0.5, 0.5, 0.5, 1.0});
+  addRectangle(Vector{0.5, -0.5, 0.5, 1.0},    //
+               Vector{0.5, -0.5, -0.5, 1.0},   //
+               Vector{-0.5, -0.5, -0.5, 1.0},  //
+               Vector{-0.5, -0.5, 0.5, 1.0});
 }
 
 inline std::size_t flush() {
@@ -434,7 +461,9 @@ int main() {
   init(WIDTH, HEIGHT);
 
   // Instead of having coordinates on the screen be in [0, WIDTH] x [0, HEIGHT],
-  // We can now think in terms of [0, 1], [0, 1].
+  // We can now think in terms of [-1, 1] x [-1, 1].
+  // The downside being that when WIDTH != HEIGHT, the image will look a bit
+  // stretched or squashed.
   apply(viewport());
 
   for (Uint64 frameCount = 0;; ++frameCount) {
@@ -460,10 +489,7 @@ int main() {
         TAU / 11 * perSec,
         0,
     }));
-    addTriangle(                                   //
-        Vector{.x = -0.33, .y = -0.33, .w = 1.0},  //
-        Vector{.x = 0, .y = 0.5, .w = 1.0},        //
-        Vector{.x = 0.33, .y = -0.33, .w = 1.0});
+    addBox();
     pop();
 
     flush();

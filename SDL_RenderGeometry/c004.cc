@@ -1,6 +1,6 @@
-// part 004: 3D Box (shadow)
+// part 005: 3D Box (outline)
 //
-// Like 003, but instead of a triangle, we see a shadow of a box that rotates
+// The box is drawn as in 004, but we also draw the outline.
 //
 
 #include <SDL2/SDL.h>
@@ -81,6 +81,7 @@ constexpr const Color COLORS[] = {
 
 static SDL_Window *window;
 static SDL_Renderer *renderer;
+static SDL_Texture *boxTexture;
 
 inline void init(int w, int h) {
   if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
@@ -95,6 +96,29 @@ inline void init(int w, int h) {
       SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_TARGETTEXTURE);
   if (!renderer) {
     sdlError("SDL_CreateRenderer");
+  }
+  {
+    auto surface = SDL_CreateRGBSurfaceWithFormat(0, 128, 128, 32, SDL_PIXELFORMAT_ARGB8888);
+    if (!surface) {
+      sdlError("SDL_CreateRGBSurfaceWithFormat");
+    }
+    auto pixels = static_cast<Color *>(surface->pixels);
+    for (int i = 0; i < 128; i++) {
+      for (int j = 0; j < 128; j++) {
+        auto &pixel = pixels[128 * i + j];
+        pixel.a = 255;
+        if (i == 0 || i == 127 || j == 0 || j == 127) {
+          pixel.r = pixel.g = pixel.b = 0;
+        } else {
+          pixel.r = pixel.g = pixel.b = 255;
+        }
+      }
+    }
+    boxTexture = SDL_CreateTextureFromSurface(renderer, surface);
+    if (!boxTexture) {
+      sdlError("SDL_CreateTextureFromSurface");
+    }
+    SDL_FreeSurface(surface);
   }
 }
 
@@ -344,37 +368,41 @@ inline void pop() {
 inline void apply(const Matrix &matrix) { state.transform *= matrix; }
 
 struct Vertex final {
-  float x, y, z;
-  Color color;
+  float x, y, z;  // screen coordinates
+  Color color;    // modulating color
+  float u, v;     // normalized texture coordinates
 };
 
 struct Triangle final {
   Vertex vertices[3];
 };
 
-static_assert(sizeof(Vertex) == 4 * sizeof(float));
+static_assert(sizeof(Vertex) == 6 * sizeof(float));
 static_assert(offsetof(Vertex, x) == 0 * sizeof(float));
 static_assert(offsetof(Vertex, y) == 1 * sizeof(float));
 static_assert(offsetof(Vertex, z) == 2 * sizeof(float));
 static_assert(offsetof(Vertex, color) == 3 * sizeof(float));
+static_assert(offsetof(Vertex, u) == 4 * sizeof(float));
+static_assert(offsetof(Vertex, v) == 5 * sizeof(float));
 static_assert(sizeof(Triangle) == 3 * sizeof(Vertex));
 
 static std::vector<Triangle> triangles;
 
-inline void addTriangle(const Vector &ia, const Vector &ib, const Vector &ic) {
+inline void addTriangle(const Vector &ia, const Vector &ib, const Vector &ic, float u1, float v1,
+                        float u2, float v2, float u3, float v3) {
   auto a = state.transform * ia;
   auto b = state.transform * ib;
   auto c = state.transform * ic;
   triangles.push_back(Triangle{
-      Vertex{.x = a.x, .y = a.y, .z = a.z, .color = state.fillColor},
-      Vertex{.x = b.x, .y = b.y, .z = b.z, .color = state.fillColor},
-      Vertex{.x = c.x, .y = c.y, .z = c.z, .color = state.fillColor},
+      Vertex{.x = a.x, .y = a.y, .z = a.z, .color = state.fillColor, .u = u1, .v = v1},
+      Vertex{.x = b.x, .y = b.y, .z = b.z, .color = state.fillColor, .u = u2, .v = v2},
+      Vertex{.x = c.x, .y = c.y, .z = c.z, .color = state.fillColor, .u = u3, .v = v3},
   });
 }
 
 inline void addRectangle(const Vector &a, const Vector &b, const Vector &c, const Vector &d) {
-  addTriangle(a, b, c);
-  addTriangle(c, d, a);
+  addTriangle(a, b, c, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0);
+  addTriangle(d, a, c, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0);
 }
 
 inline void addBox() {
@@ -405,48 +433,13 @@ inline void addBox() {
 }
 
 inline std::size_t flush() {
-  for (auto &triangle : triangles) {
-    // Sort the vertices in each triangle, with (z, y, x)
-    // The 'z' coordinate is most important to ensure proper drawing order
-    std::sort(  //
-        triangle.vertices, triangle.vertices + 3, [](const Vertex &lhs, const Vertex &rhs) -> bool {
-          return lhs.z < rhs.z ||
-                 (lhs.z == rhs.z && (lhs.y < rhs.y || (lhs.y == rhs.y && lhs.x < rhs.x)));
-        });
-  }
-  // Sort the triangles.
-  //
-  // We sort primarily by z coordinates, but if there are ties, we also look
-  // at y and x coordinates to reduce Z-fighting.
-  //
-  // This isn't always correct, but it's fast and simple and correct enough of the time.
-  //
-  std::sort(  //
-      triangles.begin(), triangles.end(), [](const Triangle &lhs, const Triangle &rhs) -> bool {
-        for (int i = 0; i < 3; i++) {
-          if (lhs.vertices[i].z != rhs.vertices[i].z) {
-            return lhs.vertices[i].z < rhs.vertices[i].z;
-          }
-        }
-        for (int i = 0; i < 3; i++) {
-          if (lhs.vertices[i].y != rhs.vertices[i].y) {
-            return lhs.vertices[i].y < rhs.vertices[i].y;
-          }
-        }
-        for (int i = 0; i < 3; i++) {
-          if (lhs.vertices[i].x != rhs.vertices[i].x) {
-            return lhs.vertices[i].x < rhs.vertices[i].x;
-          }
-        }
-        return false;
-      });
   auto &firstVertex = triangles.front().vertices[0];
   auto status = SDL_RenderGeometryRaw(  //
       renderer,
-      nullptr,                             // texture
+      boxTexture,                          // texture
       &firstVertex.x, sizeof(Vertex),      // xy coordinates
       &firstVertex.color, sizeof(Vertex),  // colors
-      nullptr, 0,                          // uv coordinates
+      &firstVertex.u, sizeof(Vertex),      // uv coordinates
       3 * triangles.size(),                // number of vertices
       nullptr, 0, 0);                      // indices
   if (status != 0) {
