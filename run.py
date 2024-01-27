@@ -54,8 +54,42 @@ MACOS_SDL2_FLAGS = [
     "-framework",
     "SDL2",
 ]
+MACOS_SDL2_MIXER_FLAGS = ["-framework", "SDL2_mixer"]
+MACOS_SDL2_TTF_FLAGS = ["-framework", "SDL2_ttf"]
 DEBUG_FLAGS = ["-g", "-fsanitize=address"]
 RELEASE_FLAGS = ["-O3", "-flto"]
+
+
+def missing_framework(name: str) -> typing.NoReturn:
+    panic(
+        "ERROR:\n"
+        f"  Source includes {name}, but {name}.framework is not found in working directory\n"
+        f"  You might need to download the dmg file from https://github.com/libsdl-org/{name}/releases"
+    )
+
+
+def get_sdl_flags(c_file: str, system: str) -> typing.List[str]:
+    with open(c_file) as f:
+        contents = f.read()
+
+    sdl_mixer = "#include <SDL2_mixer/SDL_mixer.h>" in contents
+    sdl_ttf = "#include <SDL2_ttf/SDL_ttf.h>" in contents
+    sdl_core = sdl_mixer or sdl_ttf or ("#include <SDL2/SDL.h>" in contents)
+
+    if system == SYSTEM_MACOS:
+        if sdl_core and not os.path.exists("SDL2.framework"):
+            missing_framework("SDL2")
+        if sdl_mixer and not os.path.exists("SDL2_mixer.framework"):
+            missing_framework("SDL2_mixer")
+        if sdl_ttf and not os.path.exists("SDL2_ttf.framework"):
+            missing_framework("SDL2_ttf")
+        return (
+            (MACOS_SDL2_FLAGS if sdl_core else [])
+            + (MACOS_SDL2_MIXER_FLAGS if sdl_mixer else [])
+            + (MACOS_SDL2_TTF_FLAGS if sdl_ttf else [])
+        )
+
+    panic(f"System not yet supported: {system} (get_sdl_flags)")
 
 
 def compile(
@@ -71,14 +105,14 @@ def compile(
                 "clang++",
                 *CXX_STANDARD_FLAGS,
                 *WARNING_FLAGS,
-                *MACOS_SDL2_FLAGS,
+                *get_sdl_flags(c_file, system),
                 *(DEBUG_FLAGS if debug else RELEASE_FLAGS),
                 f"-o{exe_name}",
                 c_file,
             ]
         )
     else:
-        panic(f"System not yet supported: {system}")
+        panic(f"System not yet supported: {system} (compile)")
 
     if VERBOSE:
         print("COMPILING PROGRAM:")
@@ -95,7 +129,7 @@ def run(
 ) -> None:
     args = [os.path.join(".", exe_name)] + subproc_args
     if VERBOSE:
-        print("RUNNING COMPILED PROGRAM PROGRAM:")
+        print("RUNNING COMPILED PROGRAM:")
         print(f"  {args[0]}\n    " + "\n    ".join(args[1:]))
 
     returncode = subprocess.run(args).returncode

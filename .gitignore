@@ -1,4 +1,6 @@
 .DS_Store
 /SDL2.framework
+/SDL2_mixer.framework
+/SDL2_ttf.framework
 /a.out
 *.dSYM
