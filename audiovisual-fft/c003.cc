@@ -53,7 +53,7 @@ constexpr const Color GREEN = Color{0, 228, 54, 255};    // 11
 constexpr const Color BLUE = Color{41, 173, 255, 255};   // 12
 
 constexpr const int WIDTH = 800;
-constexpr const int HEIGHT = 600;
+constexpr const int HEIGHT = 400;
 constexpr const float FPS = 60.0;
 constexpr const float SEC_PER_FRAME = 1 / FPS;
 constexpr const Uint64 MS_PER_FRAME = Uint64(1000 * SEC_PER_FRAME + 1);
@@ -179,10 +179,10 @@ int main() {
     if (pcm.size() >= CHUNK_SIZE &&
         SDL_GetAudioDeviceStatus(recordingDevice) == SDL_AUDIO_PLAYING) {
       buffer.clear();
-      // SDL_LockAudio();
+      SDL_LockAudio();
       buffer.insert(buffer.end(), pcm.begin(), pcm.end());
       pcm.clear();
-      // SDL_UnlockAudio();
+      SDL_UnlockAudio();
       fastFourierTransform<float, CHUNK_SIZE>(buffer.data());
     }
 

@@ -1,11 +1,10 @@
-// c002: Like 001, but also display "phase" data
+// c001: Calculate the FFT and display it on the screen
 
 #include <SDL2/SDL.h>
 #include <SDL2_mixer/SDL_mixer.h>
 
 #include <algorithm>
 #include <bit>
-#include <cmath>
 #include <complex>
 #include <concepts>
 #include <cstddef>
@@ -49,20 +48,18 @@ void fastFourierTransform(std::complex<Scalar> *x) {
 }
 
 using Color = SDL_Color;
-constexpr const Color ORANGE = Color{255, 163, 0, 255};  // 9
-constexpr const Color GREEN = Color{0, 228, 54, 255};    // 11
-constexpr const Color BLUE = Color{41, 173, 255, 255};   // 12
+constexpr const Color DARK_GREY = Color{95, 87, 79, 255};  // 5
+constexpr const Color ORANGE = Color{255, 163, 0, 255};    // 9
+constexpr const Color BLUE = Color{41, 173, 255, 255};     // 12
 
 constexpr const int WIDTH = 800;
-constexpr const int HEIGHT = 400;
+constexpr const int HEIGHT = 600;
 constexpr const float FPS = 60.0;
 constexpr const float SEC_PER_FRAME = 1 / FPS;
 constexpr const Uint64 MS_PER_FRAME = Uint64(1000 * SEC_PER_FRAME + 1);
 constexpr const int CHUNK_SIZE = 2048;
 constexpr const int FREQUENCY = 48000;
-constexpr const int DISPLAY_FREQ_BIN_COUNT = 180;  // covers range of 88-key piano
-constexpr const float FREQ_BIN_STEP = FREQUENCY / float(CHUNK_SIZE);
-constexpr const float MAX_DISPLAYED_FREQ_BIN = FREQ_BIN_STEP * DISPLAY_FREQ_BIN_COUNT;
+constexpr const int DISPLAY_FREQ_BIN_COUNT = 256;
 
 static SDL_Window *window;
 static SDL_Renderer *renderer;
@@ -118,9 +115,6 @@ int main(int argc, const char **argv) {
 
   init(WIDTH, HEIGHT);
 
-  std::cout << "MAX_DISPLAYED_FREQ_BIN = " << MAX_DISPLAYED_FREQ_BIN << std::endl;
-  std::cout << "(Frequency of highest note on 88-key piano, C8 ~= " << 4186.009 << ")" << std::endl;
-
   auto music = Mix_LoadMUS(argv[1]);
   if (!music) {
     sdlError("Mix_LoadMUS");
@@ -162,10 +156,10 @@ int main(int argc, const char **argv) {
 
     if (pcm.size() >= CHUNK_SIZE) {
       buffer.clear();
-      SDL_LockAudio();
+      // SDL_LockAudio();
       buffer.insert(buffer.end(), pcm.begin(), pcm.end());
       pcm.clear();
-      SDL_UnlockAudio();
+      // SDL_UnlockAudio();
       fastFourierTransform<float, CHUNK_SIZE>(buffer.data());
     }
 
@@ -175,12 +169,7 @@ int main(int argc, const char **argv) {
       const float w = WIDTH / float(rectCount);
       const auto x = i * w;
       const auto h = std::abs(buffer[i]);
-      auto ratio = std::fmod(
-          1.0f + std::atan2(buffer[i].real(), buffer[i].imag()) / (2 * std::numbers::pi_v<float>),
-          1.0f);
-      auto h2 = h * ratio;
       rect(ORANGE, {x, HEIGHT - h - HEIGHT / 8, w, h});
-      rect(GREEN, {x, HEIGHT - h2 - HEIGHT / 8, w, h2});
     }
 
     SDL_RenderPresent(renderer);

@@ -48,18 +48,19 @@ void fastFourierTransform(std::complex<Scalar> *x) {
 }
 
 using Color = SDL_Color;
-constexpr const Color DARK_GREY = Color{95, 87, 79, 255};  // 5
-constexpr const Color ORANGE = Color{255, 163, 0, 255};    // 9
-constexpr const Color BLUE = Color{41, 173, 255, 255};     // 12
+constexpr const Color ORANGE = Color{255, 163, 0, 255};  // 9
+constexpr const Color BLUE = Color{41, 173, 255, 255};   // 12
 
 constexpr const int WIDTH = 800;
-constexpr const int HEIGHT = 600;
+constexpr const int HEIGHT = 400;
 constexpr const float FPS = 60.0;
 constexpr const float SEC_PER_FRAME = 1 / FPS;
 constexpr const Uint64 MS_PER_FRAME = Uint64(1000 * SEC_PER_FRAME + 1);
 constexpr const int CHUNK_SIZE = 2048;
 constexpr const int FREQUENCY = 48000;
-constexpr const int DISPLAY_FREQ_BIN_COUNT = 256;
+constexpr const int DISPLAY_FREQ_BIN_COUNT = 180;  // covers range of 88-key piano
+constexpr const float FREQ_BIN_STEP = FREQUENCY / float(CHUNK_SIZE);
+constexpr const float MAX_DISPLAYED_FREQ_BIN = FREQ_BIN_STEP * DISPLAY_FREQ_BIN_COUNT;
 
 static SDL_Window *window;
 static SDL_Renderer *renderer;
@@ -113,6 +114,9 @@ int main(int argc, const char **argv) {
     return 1;
   }
 
+  std::cout << "MAX_DISPLAYED_FREQ_BIN = " << MAX_DISPLAYED_FREQ_BIN << std::endl;
+  std::cout << "(Frequency of highest note on 88-key piano, C8 ~= " << 4186.009 << ")" << std::endl;
+
   init(WIDTH, HEIGHT);
 
   auto music = Mix_LoadMUS(argv[1]);
@@ -156,10 +160,10 @@ int main(int argc, const char **argv) {
 
     if (pcm.size() >= CHUNK_SIZE) {
       buffer.clear();
-      // SDL_LockAudio();
+      SDL_LockAudio();
       buffer.insert(buffer.end(), pcm.begin(), pcm.end());
       pcm.clear();
-      // SDL_UnlockAudio();
+      SDL_UnlockAudio();
       fastFourierTransform<float, CHUNK_SIZE>(buffer.data());
     }
 
