@@ -48,10 +48,9 @@ void fastFourierTransform(std::complex<Scalar> *x) {
 }
 
 using Color = SDL_Color;
-constexpr const Color DARK_GREY = Color{95, 87, 79, 255};  // 5
-constexpr const Color ORANGE = Color{255, 163, 0, 255};    // 9
-constexpr const Color GREEN = Color{0, 228, 54, 255};      // 11
-constexpr const Color BLUE = Color{41, 173, 255, 255};     // 12
+constexpr const Color ORANGE = Color{255, 163, 0, 255};  // 9
+constexpr const Color GREEN = Color{0, 228, 54, 255};    // 11
+constexpr const Color BLUE = Color{41, 173, 255, 255};   // 12
 
 constexpr const int WIDTH = 800;
 constexpr const int HEIGHT = 600;

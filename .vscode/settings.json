@@ -68,6 +68,7 @@
         "map": "cpp",
         "set": "cpp",
         "numbers": "cpp",
-        "span": "cpp"
+        "span": "cpp",
+        "bit": "cpp"
     }
 }
