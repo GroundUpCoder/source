@@ -163,10 +163,21 @@ int main() {
       switch (event.type) {
         case SDL_QUIT:
           return 0;
+        case SDL_KEYDOWN:
+          switch (event.key.keysym.scancode) {
+            case SDL_SCANCODE_SPACE:
+              SDL_PauseAudioDevice(  //
+                  recordingDevice,   //
+                  SDL_GetAudioDeviceStatus(recordingDevice) != SDL_AUDIO_PAUSED);
+              break;
+            default:
+              break;
+          }
       }
     }
 
-    if (pcm.size() >= CHUNK_SIZE) {
+    if (pcm.size() >= CHUNK_SIZE &&
+        SDL_GetAudioDeviceStatus(recordingDevice) == SDL_AUDIO_PLAYING) {
       buffer.clear();
       // SDL_LockAudio();
       buffer.insert(buffer.end(), pcm.begin(), pcm.end());
